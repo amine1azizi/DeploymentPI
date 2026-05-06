@@ -1,0 +1,302 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
+// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id         String     @id @default(cuid())
+  keycloakId String?    @unique
+  email      String     @unique
+  username   String?
+  phone           String?
+  birthday        DateTime?
+  address         String?
+  createdAt  DateTime   @default(now())
+  role       Role       @default(USER)
+  points     Int        @default(0)
+  photos     Photo[]
+  analyses   Analysis[]
+  reminders  Reminder[]
+  subscriptionTier SubscriptionTier @default(FREE)
+  conversations Conversation[]
+  cart       Cart?
+  orders     Order[]
+  questionnaire SkinQuestionnaire?
+  rewardStats       UserRewardStats?
+  userBadges        UserBadge[]
+  rewardClaims      RewardClaim[]
+  pointTransactions PointTransaction[]
+}
+
+enum Role {
+  USER
+  ADMIN
+}
+
+model Photo {
+  id        String   @id @default(uuid())
+  url       String // The Cloudinary URL
+  publicId  String // The Cloudinary Public ID
+  userId    String
+  user      User     @relation(fields: [userId], references: [id])
+  createdAt DateTime @default(now())
+}
+
+model Analysis {
+  id     String @id @default(uuid())
+  userId String
+  user   User   @relation(fields: [userId], references: [id])
+
+  skinType    String // Oily, Dry, etc.
+  healthScore Int // 0-100
+  skinAge     Int
+  summary     String @db.Text
+
+  // Storing complex objects as JSON
+  concerns       Json // List of issues found
+  morningRoutine Json
+  eveningRoutine Json
+
+  imageUrl  String // Reference to the photo used
+  createdAt DateTime @default(now())
+}
+
+model Reminder {
+  id     String @id @default(uuid())
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  type        String
+  time        String
+  title       String
+  description String?
+  enabled     Boolean @default(true)
+  days        Json
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+enum SubscriptionTier {
+  FREE
+  SILVER
+  GOLD
+  PLATINUM
+}
+
+model Article {
+  id        String   @id @default(uuid())
+  title     String
+  category  String   // ingredients, routines, concerns, seasonal
+  readTime  Int
+  rating    Float
+  image     String
+  summary   String   @db.Text
+  content   String[] // Array of paragraphs
+  createdAt DateTime @default(now())
+}
+
+model Video {
+  id        String   @id @default(uuid())
+  title     String
+  duration  String   // e.g., "08:24"
+  thumbnail String
+  category  String
+  url       String   // Link to the actual video
+}
+
+model Conversation {
+  id        String   @id @default(uuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  messages  Json     // Array of message objects with role and content
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model Cart {
+  id        String     @id @default(uuid())
+  userId    String     @unique
+  user      User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  items     CartItem[]
+  createdAt DateTime   @default(now())
+  updatedAt DateTime   @updatedAt
+}
+
+model CartItem {
+  id        String   @id @default(uuid())
+  cartId    String
+  cart      Cart     @relation(fields: [cartId], references: [id], onDelete: Cascade)
+  name      String
+  brand     String
+  price     String
+  image     String
+  url       String?
+  quantity  Int      @default(1)
+  createdAt DateTime @default(now())
+}
+
+model Order {
+  id        String      @id @default(uuid())
+  userId    String
+  user      User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  items     OrderItem[]
+  total     Float
+  status    OrderStatus @default(PENDING)
+  shipping  Float       @default(0)
+  tax       Float       @default(0)
+  trackingNumber String?
+  shippingAddress Json?  // {name, street, city, state, zip, phone}
+  billingAddress  Json?  // {name, street, city, state, zip}
+  paymentMethod   Json?  // {brand, last4, type}
+  createdAt DateTime    @default(now())
+  updatedAt DateTime    @updatedAt
+}
+
+model OrderItem {
+  id        String   @id @default(uuid())
+  orderId   String
+  order     Order    @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  name      String
+  brand     String
+  price     String
+  image     String
+  url       String?
+  quantity  Int
+  createdAt DateTime @default(now())
+}
+
+enum OrderStatus {
+  PENDING
+  COMPLETED
+  CANCELLED
+}
+
+model SkinQuestionnaire {
+  id               String   @id @default(uuid())
+  userId           String   @unique
+  user             User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  skinType         String
+  sensitivityLevel String
+
+  symptoms         String[]
+  affectedAreas    String[]
+  concerns         String[]
+  triggers         String[]
+
+  allergies        String?
+  medicalHistory   String?
+  duration         String
+  severity         String
+  skincareRoutine  String?
+
+  sunscreenUsage   String?
+  stressLevel      String?
+  sleepQuality     String?
+  waterIntake      String?
+
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+}
+
+enum BadgeRarity {
+  common
+  rare
+  epic
+  legendary
+}
+
+model BadgeDefinition {
+  id          String     @id
+  name        String     @unique
+  description String
+  icon        String
+  requirement String
+  rarity      BadgeRarity
+  createdAt   DateTime   @default(now())
+  updatedAt   DateTime   @updatedAt
+  userBadges  UserBadge[]
+}
+
+model UserBadge {
+  id         String          @id @default(uuid())
+  userId     String
+  user       User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  badgeId    String
+  badge      BadgeDefinition @relation(fields: [badgeId], references: [id], onDelete: Cascade)
+  unlockedAt DateTime        @default(now())
+
+  @@unique([userId, badgeId])
+}
+
+enum RewardType {
+  discount
+  product
+  content
+}
+
+model RewardDefinition {
+  id          String        @id
+  title       String
+  description String
+  points      Int
+  type        RewardType
+  image       String
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @updatedAt
+  claims      RewardClaim[]
+}
+
+model RewardClaim {
+  id         String           @id @default(uuid())
+  userId     String
+  user       User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  rewardId   String
+  reward     RewardDefinition @relation(fields: [rewardId], references: [id], onDelete: Cascade)
+  pointsSpent Int
+  claimCode  String?
+  claimedAt  DateTime         @default(now())
+
+  @@unique([userId, rewardId])
+}
+
+enum PointTransactionType {
+  EARNED
+  SPENT
+}
+
+model PointTransaction {
+  id          String               @id @default(uuid())
+  userId      String
+  user        User                 @relation(fields: [userId], references: [id], onDelete: Cascade)
+  type        PointTransactionType
+  amount      Int
+  reason      String
+  referenceId String?
+  createdAt   DateTime             @default(now())
+}
+
+model UserRewardStats {
+  id                String   @id @default(uuid())
+  userId            String   @unique
+  user              User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  currentStreak     Int      @default(0)
+  longestStreak     Int      @default(0)
+  routinesCompleted Int      @default(0)
+  productsScanned   Int      @default(0)
+  articlesRead      Int      @default(0)
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+}
+
