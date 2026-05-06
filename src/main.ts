@@ -7,7 +7,12 @@ async function bootstrap() {
 
     // Configuration CORS complète
     app.enableCors({
-      origin: ['http://localhost:5173', 'http://localhost:3000'], // Plusieurs origines
+      origin: [
+        'http://localhost:5173', 
+        'http://localhost:3000',
+        'https://devopss-olyq.vercel.app',
+        /\.vercel\.app$/  // Pour les déploiements preview Vercel
+      ],
       methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
       allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With'],
       exposedHeaders: ['Content-Range', 'X-Total-Count'],
@@ -21,7 +26,7 @@ async function bootstrap() {
 
     console.log('✅ Backend démarré avec succès');
     console.log(`📡 URL: http://localhost:${port}`);
-    console.log(`🔓 CORS activé pour: http://localhost:5173`);
+    console.log(`🔓 CORS activé pour: http://localhost:5173 et https://devopss-olyq.vercel.app`);
   } catch (error) {
     console.error('❌ Erreur au démarrage:', error);
     process.exit(1);
